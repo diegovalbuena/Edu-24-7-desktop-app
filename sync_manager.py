@@ -44,11 +44,13 @@ class SyncManager:
                 f.write(chunk)
 
     def sync_folder(self, folder_prefix, status_callback=None):
+        print(f"Sincronizando folder: {folder_prefix}")
         try:
             files = self.fetch_files(folder_prefix)
         except Exception as e:
+            print("Error al obtener archivos:", e)
             if status_callback:
-                status_callback("Sin conexión, se sincronizará luego.")
+                status_callback(text="Sin conexión, se sincronizará luego.")
             return
         local_folder = os.path.join(self.local_root, folder_prefix.replace('/', os.sep))
         if not os.path.exists(local_folder):
@@ -61,6 +63,7 @@ class SyncManager:
                 self.sync_folder(entry["name"], status_callback)
             else:
                 dest_path = os.path.join(self.local_root, entry["name"].replace('/', os.sep))
+                print("Descargando archivo:", entry["url"])
                 if not os.path.exists(dest_path):
                     try:
                         self.download_file(entry["url"], dest_path)
@@ -68,17 +71,22 @@ class SyncManager:
                         print("Error descargando", entry["url"], e)
 
     def sync_selected(self, selected, status_callback=None):
+        print("Iniciando sync_selected con: ", selected)
         if status_callback:
-            status_callback("Sincronizando...")
+            status_callback(text="Sincronizando...")
         for folder in selected:
+            print("Sincronizando carpeta: ", folder)
             self.sync_folder(folder, status_callback)
         if status_callback:
-            status_callback("¡Sincronización completa!")
+            status_callback(text="¡Sincronización completa!")
+
 
     def borrar_descargas(self):
         if os.path.exists(self.local_root):
+            import shutil
             shutil.rmtree(self.local_root)
-            os.makedirs(self.local_root)
+        os.makedirs(self.local_root, exist_ok=True)
+
 
     def hay_descargas(self):
         # Devuelve True si hay archivos descargados en el LOCAL_ROOT

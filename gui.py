@@ -5,6 +5,7 @@ import tkinter as tk
 from tkinter import messagebox
 from PIL import Image, ImageTk
 import subprocess
+from pathlib import Path
 
 class Edu247App:
     def __init__(self, sync_manager):
@@ -51,7 +52,7 @@ class Edu247App:
         self.status_label = tk.Label(self.root, text="", font=("Arial", 10), fg="green")
         self.status_label.pack(pady=8)
 
-        # Botón borrar descargas (solo visible si hay archivos)
+        # Botón borrar descargas SIEMPRE visible, solo habilitado si hay archivos
         self.btn_borrar = tk.Button(
             self.root,
             text="🗑️ Borrar todos los archivos descargados",
@@ -60,7 +61,7 @@ class Edu247App:
             font=("Arial", 10, "bold")
         )
         self.btn_borrar.pack(pady=(2, 10))
-        self.update_borrar_btn_visibility()
+        self.update_borrar_btn_state()
 
         self.load_folders()
 
@@ -133,7 +134,7 @@ class Edu247App:
         selected = self.sync_manager.load_selection()
         if not selected:
             self.status_label.config(text="Selecciona carpetas a sincronizar.")
-            self.update_borrar_btn_visibility()
+            self.update_borrar_btn_state()
             self.root.after(60000, self.periodic_sync)
             return
         if self.sync_manager.is_online():
@@ -141,21 +142,22 @@ class Edu247App:
             threading.Thread(target=self.sync_manager.sync_selected, args=(selected, self.status_label.config), daemon=True).start()
         else:
             self.status_label.config(text="Sin conexión. Se descargará automáticamente cuando vuelva el Internet.")
-        self.update_borrar_btn_visibility()
+        self.update_borrar_btn_state()
         self.root.after(60000, self.periodic_sync)
 
     def open_file(self, filename):
-        local_path = self.sync_manager.get_local_path(filename)
-        print("Intentando abrir:", local_path)
-        print("¿Existe archivo?:", os.path.exists(local_path))
-        if os.path.exists(local_path) and os.path.getsize(local_path) > 0:
+        local_path = Path(self.sync_manager.get_local_path(filename)).resolve()
+        print(f"Intentando abrir: '{local_path}'")
+        print("¿Existe archivo?:", local_path.exists())
+        print("Tamaño:", local_path.stat().st_size if local_path.exists() else "No existe")
+        if local_path.exists() and local_path.stat().st_size > 0:
             try:
                 if sys.platform == "win32":
-                    os.startfile(local_path)
+                    os.startfile(str(local_path))
                 elif sys.platform == "darwin":
-                    subprocess.call(["open", local_path])
+                    subprocess.call(["open", str(local_path)])
                 else:
-                    subprocess.call(["xdg-open", local_path])
+                    subprocess.call(["xdg-open", str(local_path)])
             except Exception as e:
                 messagebox.showerror("Error", f"No se pudo abrir el archivo:\n{e}")
         else:
@@ -164,6 +166,7 @@ class Edu247App:
     def on_borrar_descargas(self):
         if not self.sync_manager.hay_descargas():
             messagebox.showinfo("Nada que borrar", "No hay archivos descargados aún.")
+            self.update_borrar_btn_state()
             return
         respuesta = messagebox.askyesno(
             "Confirmar",
@@ -176,11 +179,11 @@ class Edu247App:
             messagebox.showinfo("Listo", "¡Todos los archivos descargados han sido eliminados!")
         except Exception as e:
             messagebox.showerror("Error", f"No se pudo borrar:\n{e}")
-        self.update_borrar_btn_visibility()
+        self.update_borrar_btn_state()
 
-    def update_borrar_btn_visibility(self):
-        # Solo mostrar botón si hay archivos descargados
+    def update_borrar_btn_state(self):
+        # Habilita o deshabilita el botón según si hay archivos descargados
         if self.sync_manager.hay_descargas():
-            self.btn_borrar.pack_configure(pady=(2,10))
+            self.btn_borrar.config(state="normal")
         else:
-            self.btn_borrar.pack_forget()
+            self.btn_borrar.config(state="disabled")
