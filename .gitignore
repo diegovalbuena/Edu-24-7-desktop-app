@@ -1,0 +1,19 @@
+# Ignorar archivos/carpetas temporales de Python
+__pycache__/
+*.pyc
+
+# Ignorar carpetas y archivos generados por PyInstaller
+build/
+dist/
+*.spec
+
+# Ignorar archivos temporales de OS
+*.log
+.DS_Store
+Thumbs.db
+
+# Ignorar entornos virtuales comunes
+env/
+venv/
+ENV/
+.venv/
