@@ -1,3 +1,6 @@
+# gui.py
+# Interfaz gráfica de usuario (Tkinter) para Edu 24/7 Offline
+
 import os
 import sys
 import threading
@@ -8,6 +11,10 @@ import subprocess
 from pathlib import Path
 
 class Edu247App:
+    """
+    Ventana principal de la app Edu 24/7 Offline.
+    Permite seleccionar carpetas para sincronización, navegar y abrir archivos.
+    """
     def __init__(self, sync_manager):
         self.sync_manager = sync_manager
         self.root = tk.Tk()
@@ -18,11 +25,12 @@ class Edu247App:
 
         self.build_gui()
 
-        # Lanzar sincronización automática periódica
+        # Inicia la sincronización automática cada minuto
         self.periodic_sync()
         self.root.mainloop()
 
     def build_gui(self):
+        """Crea los elementos gráficos principales de la interfaz."""
         # Logo
         logo_path = os.path.join("assets", "edu247_logo_libro_colombia_v2.png")
         logo_img = None
@@ -30,7 +38,7 @@ class Edu247App:
             img = Image.open(logo_path).resize((90, 90))
             logo_img = ImageTk.PhotoImage(img)
             tk.Label(self.root, image=logo_img).pack(pady=10)
-            self.root.logo_img = logo_img  # evita que lo borre el recolector de basura
+            self.root.logo_img = logo_img  # previene recolección de basura del logo
 
         tk.Label(self.root, text="Edu 24/7", font=("Arial", 22, "bold")).pack()
         tk.Label(
@@ -41,18 +49,21 @@ class Edu247App:
         self.main_frame = tk.Frame(self.root)
         self.main_frame.pack(fill="both", expand=True, padx=20, pady=10)
 
+        # Panel izquierdo: lista de carpetas raíz
         self.left_frame = tk.Frame(self.main_frame)
         self.left_frame.pack(side="left", fill="y", padx=(0,18))
 
         tk.Label(self.left_frame, text="Carpetas raíz disponibles:", font=("Arial", 11, "bold")).pack(anchor="w")
 
+        # Panel derecho: contenido de la carpeta seleccionada
         self.right_frame = tk.Frame(self.main_frame, bg="#f8f8f8")
         self.right_frame.pack(side="left", fill="both", expand=True)
 
+        # Estado/avisos
         self.status_label = tk.Label(self.root, text="", font=("Arial", 10), fg="green")
         self.status_label.pack(pady=8)
 
-        # Botón borrar descargas SIEMPRE visible, solo habilitado si hay archivos
+        # Botón borrar descargas (siempre visible, se habilita/deshabilita)
         self.btn_borrar = tk.Button(
             self.root,
             text="🗑️ Borrar todos los archivos descargados",
@@ -66,7 +77,8 @@ class Edu247App:
         self.load_folders()
 
     def load_folders(self):
-        # Limpia panel de la izquierda
+        """Carga y muestra las carpetas raíz de la nube (panel izquierdo)."""
+        # Limpia panel
         for widget in self.left_frame.winfo_children():
             if isinstance(widget, tk.Checkbutton) or isinstance(widget, tk.Frame):
                 widget.destroy()
@@ -91,9 +103,10 @@ class Edu247App:
             print(e)
 
     def show_files(self, prefix):
+        """Muestra el contenido (archivos/carpetas) de la carpeta seleccionada en el panel derecho."""
         for widget in self.right_frame.winfo_children():
             widget.destroy()
-        # Botón para retroceder si no estamos en raíz
+        # Botón para retroceder a carpeta superior si no estamos en raíz
         if prefix:
             parts = prefix.strip("/").split("/")
             if parts:
@@ -107,7 +120,7 @@ class Edu247App:
             tk.Label(self.right_frame, text="No se pudo cargar el contenido.", fg="red").pack()
             return
         for entry in files:
-            # IGNORA .init en la vista
+            # Ignora archivos .init
             if entry["name"].endswith(".init"):
                 continue
             if entry["name"].endswith("/"):
@@ -120,6 +133,7 @@ class Edu247App:
                 btn.pack(fill="x", padx=28, pady=1)
 
     def on_check(self, var, folder):
+        """Callback cuando se marca/desmarca una carpeta para sincronizar."""
         selected = self.sync_manager.load_selection()
         if var.get():
             if folder not in selected:
@@ -131,6 +145,7 @@ class Edu247App:
         threading.Thread(target=self.sync_manager.sync_selected, args=(selected, self.status_label.config), daemon=True).start()
 
     def periodic_sync(self):
+        """Sincronización automática cada minuto, si hay carpetas seleccionadas."""
         selected = self.sync_manager.load_selection()
         if not selected:
             self.status_label.config(text="Selecciona carpetas a sincronizar.")
@@ -146,6 +161,7 @@ class Edu247App:
         self.root.after(60000, self.periodic_sync)
 
     def open_file(self, filename):
+        """Abre un archivo local descargado con la aplicación predeterminada del sistema."""
         local_path = Path(self.sync_manager.get_local_path(filename)).resolve()
         print(f"Intentando abrir: '{local_path}'")
         print("¿Existe archivo?:", local_path.exists())
@@ -164,6 +180,7 @@ class Edu247App:
             messagebox.showinfo("No disponible", "El archivo aún no está completamente descargado o fue movido.")
 
     def on_borrar_descargas(self):
+        """Borra todos los archivos descargados localmente."""
         if not self.sync_manager.hay_descargas():
             messagebox.showinfo("Nada que borrar", "No hay archivos descargados aún.")
             self.update_borrar_btn_state()
@@ -182,7 +199,7 @@ class Edu247App:
         self.update_borrar_btn_state()
 
     def update_borrar_btn_state(self):
-        # Habilita o deshabilita el botón según si hay archivos descargados
+        """Habilita o deshabilita el botón de borrado según si hay archivos descargados."""
         if self.sync_manager.hay_descargas():
             self.btn_borrar.config(state="normal")
         else:
